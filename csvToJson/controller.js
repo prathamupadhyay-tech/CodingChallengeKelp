@@ -3,6 +3,29 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
+// Function to create the database if it does not exist
+async function createDatabaseIfNotExists() {
+  const tempClient = new Client({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+  });
+
+  await tempClient.connect();
+
+  try {
+    const res = await tempClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [process.env.DB_NAME]);
+    if (res.rowCount === 0) {
+      await tempClient.query(`CREATE DATABASE ${process.env.DB_NAME}`);
+      console.log(`Database '${process.env.DB_NAME}' created.`);
+    } else {
+      console.log(`Database '${process.env.DB_NAME}' already exists.`);
+    }
+  } finally {
+    await tempClient.end();
+  }
+}
 
 //function to handle if the table exists or not.
 async function ensureTableExists(client) {
@@ -18,12 +41,10 @@ async function ensureTableExists(client) {
   await client.query(createTableQuery);
 }
 
-
 //function to calculate age distribution.
 async function calculateAgeDistribution() {
   const client = await pool.connect();
   try {
-
     //selecting the age column from the users table
     const res = await client.query("SELECT age FROM public.users");
 
@@ -70,21 +91,21 @@ async function calculateAgeDistribution() {
 }
 //function to parse the csv file to get the values in array formate.
 function parseCSV(filePath) {
-    console.log(filePath);
-    const data = fs.readFileSync(filePath, "utf8");
+  console.log(filePath);
+  const data = fs.readFileSync(filePath, "utf8");
 
-    const lines = data.trim().split(/\r?\n/);
-    console.log(lines);
-    const result = [];
+  const lines = data.trim().split(/\r?\n/);
+  console.log(lines);
+  const result = [];
 
-    lines.forEach((line) => {
-      const columns = line.split(",");
+  lines.forEach((line) => {
+    const columns = line.split(",");
 
-      result.push(columns);
-    });
+    result.push(columns);
+  });
 
-    return result;
-  }
+  return result;
+}
 
 //method called on the api for handling all the functions.
 const uploadFileData = async (req, res) => {
@@ -99,24 +120,21 @@ const uploadFileData = async (req, res) => {
   //first we take out header to understand and make a template for the objects that will be created.
   let headers = parsedData[0];
 
-  
   //we iterate over all the parsedData to convert them to JSON object.
   for (let index = 1; index < parsedData.length; index++) {
     let data = parsedData[index];
 
     let newObj = {};
 
-    
     for (let i = 0; i < headers.length; i++) {
       let header = headers[i];
-      let keys = header.split("."); 
+      let keys = header.split(".");
 
-     
       let currentLevel = newObj;
       for (let j = 0; j < keys.length; j++) {
         let key = keys[j].trim().toLowerCase();
         if (j === keys.length - 1) {
-          currentLevel[key] = data[i].replace(/"/g, ""); 
+          currentLevel[key] = data[i].replace(/"/g, "");
         } else {
           currentLevel[key] = currentLevel[key] || {};
           currentLevel = currentLevel[key];
@@ -125,17 +143,16 @@ const uploadFileData = async (req, res) => {
     }
 
     obj.push(newObj);
-    
+
     Object.assign(result, newObj);
   }
-
+  
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await ensureTableExists(client);
     await client.query("DELETE FROM public.users");
     for (const item of obj) {
-
       const { name, age, Address, ...additionalInfo } = item;
       const fullName = `${name?.firstname} ${name?.lastname}`;
       const addressJson = JSON.stringify(Address);
