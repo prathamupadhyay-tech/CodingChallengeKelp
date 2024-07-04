@@ -2,6 +2,9 @@ const pool = require("../db");
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
+
+
+//function to handle if the table exists or not.
 async function ensureTableExists(client) {
   const createTableQuery = `
       CREATE TABLE IF NOT EXISTS public.users (
@@ -15,10 +18,16 @@ async function ensureTableExists(client) {
   await client.query(createTableQuery);
 }
 
+
+//function to calculate age distribution.
 async function calculateAgeDistribution() {
   const client = await pool.connect();
   try {
+
+    //selecting the age column from the users table
     const res = await client.query("SELECT age FROM public.users");
+
+    //created an object to store the age distribution values.
     const ageGroups = {
       "< 20": 0,
       "20 to 40": 0,
@@ -26,7 +35,10 @@ async function calculateAgeDistribution() {
       "> 60": 0,
     };
 
+    //storing total users.
     const totalUsers = res.rowCount;
+
+    //iterating over each value to check the distribution values accordingly.
     res.rows.forEach((row) => {
       if (row.age < 20) {
         ageGroups["< 20"]++;
@@ -39,6 +51,7 @@ async function calculateAgeDistribution() {
       }
     });
 
+    //mapping the age distribution percentage values to the correct group
     const ageDistribution = Object.entries(ageGroups).map(
       ([ageGroup, count]) => ({
         ageGroup,
@@ -46,6 +59,7 @@ async function calculateAgeDistribution() {
       })
     );
 
+    //printing the values in the console
     console.log("Age-Group % Distribution");
     ageDistribution.forEach((group) => {
       console.log(`${group.ageGroup}: ${group.percentage}%`);
@@ -54,13 +68,8 @@ async function calculateAgeDistribution() {
     client.release();
   }
 }
-
-const uploadFileData = async (req, res) => {
-  let obj = [];
-  console.log(process.env.DB_PORT);
-  const filePath = path.join("files", process.env.CSV_FILE_NAME);
-  const parsedData = parseCSV(filePath);
-  function parseCSV(filePath) {
+//function to parse the csv file to get the values in array formate.
+function parseCSV(filePath) {
     console.log(filePath);
     const data = fs.readFileSync(filePath, "utf8");
 
@@ -77,29 +86,37 @@ const uploadFileData = async (req, res) => {
     return result;
   }
 
-  let firstLine = parsedData[0];
+//method called on the api for handling all the functions.
+const uploadFileData = async (req, res) => {
+  let obj = [];
+  console.log(process.env.DB_PORT);
+
+  const filePath = path.join("files", process.env.CSV_FILE_NAME);
+  const parsedData = parseCSV(filePath);
 
   let result = {};
 
+  //first we take out header to understand and make a template for the objects that will be created.
   let headers = parsedData[0];
 
-  // Iterate over each data row (excluding the header)
+  
+  //we iterate over all the parsedData to convert them to JSON object.
   for (let index = 1; index < parsedData.length; index++) {
     let data = parsedData[index];
 
     let newObj = {};
 
-    // Map each data element to the corresponding key in originalObject dynamically
+    
     for (let i = 0; i < headers.length; i++) {
       let header = headers[i];
-      let keys = header.split("."); // Handle nested keys
+      let keys = header.split("."); 
 
-      // Assign value in the nested structure
+     
       let currentLevel = newObj;
       for (let j = 0; j < keys.length; j++) {
         let key = keys[j].trim().toLowerCase();
         if (j === keys.length - 1) {
-          currentLevel[key] = data[i].replace(/"/g, ""); // Remove double quotes
+          currentLevel[key] = data[i].replace(/"/g, ""); 
         } else {
           currentLevel[key] = currentLevel[key] || {};
           currentLevel = currentLevel[key];
@@ -108,7 +125,7 @@ const uploadFileData = async (req, res) => {
     }
 
     obj.push(newObj);
-    // Merge newObj into result (you might want to adjust this depending on your use case)
+    
     Object.assign(result, newObj);
   }
 
