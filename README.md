@@ -13,10 +13,10 @@
      ```
        DB_HOST=db_host
        DB_PORT=db_port
-       DB_USER=postgres
+       DB_USER=db_user
        DB_PASSWORD="your_password"
-       DB_NAME=user_data or your_own_database
-       CSV_FILE_NAME=data-income-age-group.csv or upload the file in the file folder and type its name
+       DB_NAME=user_data
+       CSV_FILE_NAME=large_dataset2.csv or upload the file in the file folder and type its name
      ```
   4. Run the application using the following command.
 
